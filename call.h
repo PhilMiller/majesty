@@ -3,9 +3,27 @@
 #include <experimental/reflect>
 
 
+template <auto MethodPointer> // auto here is C++17
+struct registration
+{
+  using callable = decltype(MethodPointer);
+
+  static int number = 0;
+  int register()
+  {
+    number = system::get_next_entry_registration();
+    return number;
+  }
+  int get()
+  {
+    assert(number != 0);
+    return number;
+  }
+};
+
 // Illustrative versions for comparison/discussion of need for symbol->object reification
 
-#define SEND(PROXY_OBJECT, METHOD_NAME, ...)                          \
+#define SEND(PROXY_OBJECT, METHOD_NAME, ...)                            \
   do {                                                                  \
     using target_type = decltype(PROXY_OBJECT)::target_type_t;          \
     using call_expression = reflexpr(declval(target_type).METHOD_NAME(__VA_ARGS__)); \
@@ -16,7 +34,7 @@
       target_type *obj_ptr = system.get_object_ptr(PROXY_OBJECT);       \
       obj_ptr->*method_ptr(__VA_ARGS__);                                \
     } else {                                                            \
-      auto method_handle = system.get_method_handle(method_ptr);        \
+      auto method_handle = registration<method_ptr>::get();             \
       system.pack_and_send(PROXY_OBJECT, method_handle, __VA_ARGS__);   \
     }                                                                   \
   } while (false)
