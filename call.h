@@ -41,19 +41,21 @@ struct registration
 
 
 template <typename Proxy, typename ...Args>
-void send(Proxy proxy, Symbol method_name, Args ...args) {
+//                     vvvvvv This doesn't actually exist, AFAIK, so we need the macro above
+void send(Proxy proxy, Symbol method_name, Args&& ...args) {
   using target_type = Proxy::target_type_t;
   //            Tricky bit is here vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
   using call_expression = reflexpr(invoke_member_symbol(method_name, declval(target_type), args...));
+  // What reference category do we want for this, value or forwarded?                      ^^^^^^^
   using callable = std::experimental::reflect::get_callable_t<call_expression>;
   auto method_ptr = std::experimental::reflect::get_pointer_v<callable>;
 
   if (system.should_call_inline(method_ptr)) {
     target_type *obj_ptr = system.get_object_ptr(proxy);
-    obj_ptr->*method_ptr(args...);
+    obj_ptr->*method_ptr(std::forward<Args>(args)...);
   } else {
     auto method_handle = system.get_method_handle(method_ptr);
-    system.pack_and_send(PROXY_OBJECT, method_handle, args...);
+    system.pack_and_send(PROXY_OBJECT, method_handle, std::forward<Args>(args)...);
   }
 }
 
